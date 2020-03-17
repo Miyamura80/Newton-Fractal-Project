@@ -1,1 +1,1 @@
-"# Newton Fractal Project" 
+# Newton Fractal Project
