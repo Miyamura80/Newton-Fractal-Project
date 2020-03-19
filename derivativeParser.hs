@@ -21,14 +21,14 @@ foldExpression v c a m p s d l (Log exp1) = l (foldExpression v c a m p s d l ex
 
 --Differentiation function
 diff :: Expression -> Expression
-diff (Var xs) = C "1"
+diff (Var xs) = C "1.0"
 diff (C n) = C "0"
 diff (exp1 `Add` exp2) = (diff exp1) `Add` (diff exp2)
 diff (exp1 `Mul` exp2) = ((diff exp1) `Mul` exp2) `Add` ((diff exp2) `Mul` exp1)
 diff (exp1 `Pow` (C n)) = (diff exp1) `Mul` ((C n) `Mul` (exp1 `Pow` ((C n) `Sub` (C "1"))))
 diff (exp1 `Pow` exp2) = ((((diff exp1) `Div` exp1) `Mul` exp2) `Add` ((Log exp1) `Mul` (diff exp2))) `Mul` (exp1 `Pow` exp2) 
 diff (exp1 `Sub` exp2) = (diff exp1) `Sub` (diff exp2)
-diff (exp1 `Div` exp2) = (((diff exp1) `Mul` exp2) `Sub` ((diff exp2) `Mul` exp1)) `Div` (exp2 `Pow` (C "2"))
+diff (exp1 `Div` exp2) = (((diff exp1) `Mul` exp2) `Sub` ((diff exp2) `Mul` exp1)) `Div` (exp2 `Pow` (C "2.0"))
 diff (Log exp1) = (diff exp1) `Div` (exp1)
 
 
@@ -64,20 +64,33 @@ isConst :: String -> Bool
 isConst xs = foldr f True xs
                where f x fl = ((isDigit x) || x=='e') && fl    
 
+
 correctExpType :: String -> Expression
 correctExpType xs | checkLn xs = Log (convertToExpr (drop 2 xs))
                   | (isConst xs) = C xs
-                  | otherwise = Var xs
+                  | xs=="x" = Var xs
+                  | otherwise = convertToExpr xs
 
 findBinOp :: String -> (String,Char,String)
 findBinOp [] = ([],' ',[])
 findBinOp (x:xs) | x=='+' = ([],'+',xs)
-                 | x=='*' = ([],'*',xs)
-                 | x=='^' = ([],'^',xs)
+                 | x=='*' && not (findPlus (x:xs)) = ([],'*',xs)
+                 | x=='^' && not (findMul (x:xs)) = ([],'^',xs)
                  | x=='-' = ([],'-',xs)
-                 | x=='/' = ([],'/',xs)
+                 | x=='/' && not (findPlus (x:xs)) = ([],'/',xs)
                  | otherwise = (x:(trip 0 done), mid done, trip 2 done)
                       where done = findBinOp xs
+
+findPlus :: String -> Bool
+findPlus = foldr f False 
+             where f x fl | x=='+' = True
+                          | otherwise = fl
+
+findMul :: String -> Bool
+findMul = foldr f False 
+             where f x fl | x=='*' = True
+                          | otherwise = fl
+
 
 mid :: (a,b,a) -> b
 mid (x,y,z) = y
@@ -149,19 +162,26 @@ simplify (exp1 `Add` (C "0")) = exp1
 simplify ((C "0") `Add` exp2) = exp2
 simplify (exp1 `Mul` (C "0")) = C "0"
 simplify ((C "0") `Mul` exp2) = C "0"
-simplify (exp1 `Mul` (C "1")) = exp1
-simplify ((C "1") `Mul` exp2) = exp2
+simplify (exp1 `Mul` (C "1.0")) = exp1
+simplify ((C "1.0") `Mul` exp2) = exp2
 simplify ((C "0") `Pow` exp2) = C "0"
-simplify (exp1 `Pow` (C "0")) = C "1"
-simplify (exp1 `Pow` (C "1")) = exp1
-simplify ((C "1") `Pow` exp2) = C "1"
+simplify (exp1 `Pow` (C "0")) = C "1.0"
+simplify (exp1 `Pow` (C "1.0")) = exp1
+simplify ((C "1.0") `Pow` exp2) = C "1.0"
 simplify ((C "0") `Div` exp2) = C "0"
 simplify (exp1 `Sub` (C "0")) = exp1
-simplify (Log (C "1")) = C "0"
-simplify (Log (C "e")) = C "1"
-simplify ((C a) `Add` (C b)) = C (show ((read a :: Int) + (read b :: Int)))
-simplify ((C a) `Sub` (C b)) = C (show ((read a :: Int) - (read b :: Int)))
-simplify ((C a) `Mul` (C b)) = C (show ((read a :: Int) * (read b :: Int)))
+simplify (Log (C "1.0")) = C "0"
+simplify (Log (C "e")) = C "1.0"
+simplify ((C a) `Add` (C b)) = C (show ((read a :: Double) + (read b :: Double)))
+simplify ((C a) `Pow` (C b)) = C (show ((read a :: Double) ** (read b :: Double)))
+simplify ((C a) `Sub` (C b)) = C (show ((read a :: Double) - (read b :: Double)))
+simplify ((C a) `Mul` (C b)) = C (show ((read a :: Double) * (read b :: Double)))
+simplify (((C a) `Add` exp1) `Mul` (C b)) = (C (show ((read a :: Double)*(read b :: Double)))) `Add` ((C b) `Mul` (exp1))
+simplify ((C b) `Mul` ((C a) `Add` exp1)) = (C (show ((read a :: Double)*(read b :: Double)))) `Add` ((C b) `Mul` (exp1))
+simplify (((C a) `Sub` exp1) `Mul` (C b)) = (C (show ((read a :: Double)*(read b :: Double)))) `Sub` ((C b) `Mul` (exp1))
+simplify ((C b) `Mul` ((C a) `Sub` exp1)) = (C (show ((read a :: Double)*(read b :: Double)))) `Sub` ((C b) `Mul` (exp1))
+simplify (((C a) `Mul` exp1) `Mul` (C b)) = (C (show ((read a :: Double)*(read b :: Double)))) `Mul` (exp1)
+simplify ((C b) `Mul` ((C a) `Mul` exp1)) = (C (show ((read a :: Double)*(read b :: Double)))) `Mul` (exp1)
 simplify exp = exp
 
 
