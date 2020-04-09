@@ -193,3 +193,6 @@ simp (exp1 `Sub` exp2) = simplify ((simp exp1) `Sub` (simp exp2))
 simp (exp1 `Div` exp2) = simplify ((simp exp1) `Div` (simp exp2))
 simp (Log exp1) = simplify (Log (simp exp1))
 simp exp = exp 
+
+
+--Testing this stuff
